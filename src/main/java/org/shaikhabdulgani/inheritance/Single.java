@@ -42,7 +42,7 @@ class Car extends Vehicle{
     }
 }
 
-public class SingleInheritance {
+public class Single {
     public static void main(String[] args) {
         Car car = new Car("Audi","A4",4);
         car.start();
