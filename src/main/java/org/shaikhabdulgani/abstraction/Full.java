@@ -20,10 +20,10 @@ class Circle implements Shape{
 
 public class Full {
     public static void main(String[] args) {
-        Square square = new Square();
+        Shape square = new Square();
         square.draw();
 
-        Circle circle = new Circle();
+        Shape circle = new Circle();
         circle.draw();
     }
 }
