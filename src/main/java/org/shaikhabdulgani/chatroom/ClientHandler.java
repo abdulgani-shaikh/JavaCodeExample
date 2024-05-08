@@ -1,5 +1,7 @@
 package org.shaikhabdulgani.chatroom;
 
+import lombok.Getter;
+
 import java.io.*;
 import java.lang.ref.Cleaner;
 import java.net.Socket;
@@ -10,18 +12,21 @@ import java.util.Scanner;
 public class ClientHandler extends Thread {
 
     private Socket socket;
-    private DataInputStream dis;
-    private DataOutputStream dos;
+    private BufferedReader reader;
+    @Getter
+    private BufferedWriter writer;
     public static List<ClientHandler> users = new ArrayList<>();
+    @Getter
     private String username;
 
     public ClientHandler(Socket socket) {
         try {
             this.socket = socket;
-            this.dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-            this.dos = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
-            username = dis.readUTF();
+            writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+            reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            username = reader.readLine();
             users.add(this);
+            System.out.println(String.format("%s connected", username));
             broadcastMessage(STR."Server: \{username} joined!");
         } catch (IOException e) {
             closeEverything();
@@ -31,13 +36,17 @@ public class ClientHandler extends Thread {
     private void closeEverything() {
         removeUser();
         close(socket);
-        close(dis);
-        close(dos);
+        close(reader);
+        close(writer);
+
+        socket = null;
+        reader = null;
+        writer = null;
     }
 
-    private <T extends Closeable>void close(T res){
+    private <T extends Closeable> void close(T res) {
         try {
-            if (res!=null) {
+            if (res != null) {
                 res.close();
             }
         } catch (IOException e) {
@@ -45,19 +54,22 @@ public class ClientHandler extends Thread {
         }
     }
 
-    public void removeUser(){
-        users.remove(this);
+    public void removeUser() {
         broadcastMessage(STR."\{username} left");
+        users.remove(this);
     }
 
     private void broadcastMessage(String message) {
+        System.out.println(message);
         for (ClientHandler clientHandler : users) {
             try {
-                if (!clientHandler.username.equals(username)) {
-                    clientHandler.dos.writeUTF(message);
-                    clientHandler.dos.flush();
+                if (!clientHandler.getUsername().equals(username)) {
+                    clientHandler.writer.write(message);
+                    clientHandler.writer.newLine();
+                    clientHandler.writer.flush();
                 }
             } catch (Exception e) {
+                System.out.println(e.getMessage());
                 closeEverything();
             }
         }
@@ -69,10 +81,15 @@ public class ClientHandler extends Thread {
         String newMessage;
         while (socket.isConnected()) {
             try {
-                newMessage = dis.readUTF();
+                newMessage = reader.readLine();
+                if (newMessage.endsWith("quit()")) {
+                    closeEverything();
+                    break;
+                }
                 broadcastMessage(newMessage);
             } catch (Exception e) {
                 closeEverything();
+                break;
             }
         }
     }

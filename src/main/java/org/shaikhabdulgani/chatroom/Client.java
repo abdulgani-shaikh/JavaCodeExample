@@ -6,42 +6,61 @@ import java.util.Scanner;
 
 public class Client {
 
-    public Client() {
+    private Socket socket;
+    private BufferedReader reader;
+    private BufferedWriter writer;
+    private String username;
+
+    public Client(String username) {
         try {
-            Socket socket = new Socket("localhost", 3000);
-            DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
-            DataInputStream dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-
-            Scanner sc = new Scanner(System.in);
-            System.out.print("Enter username: ");
-            String username = sc.next();
-
-            dos.writeUTF(username);
-            new ReaderThread(
-                    socket,
-                    dis
-            ).start();
-
-            String message = sc.nextLine();
-            while (!message.equals("quit")) {
-                dos.writeUTF(STR."\{username}: \{message}");
-            }
-            closeEverything(socket,dos,dis);
+            socket = new Socket("10.0.61.81", 3000);
+            writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+            reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            this.username = username;
+            writer.write(username);
+            writer.newLine();
+            writer.flush();
         } catch (Exception e) {
             e.printStackTrace();
         }
 
     }
 
-    private void closeEverything(Socket socket, DataOutputStream dos, DataInputStream dis) {
-        close(socket);
-        close(dis);
-        close(dos);
+    public void sendMessages() throws IOException {
+        Scanner sc = new Scanner(System.in);
+        String message = "";
+        while (!message.equals("quit")) {
+            message = sc.nextLine();
+            writer.write(String.format("%s: %s", username, message));
+            writer.newLine();
+            writer.flush();
+        }
+        closeEverything();
     }
 
-    private <T extends Closeable>void close(T res){
+    public void receiveMessages() {
+        new Thread(() -> {
+            String newMessage;
+            while (socket.isConnected()) {
+                try {
+                    newMessage = reader.readLine();
+                    System.out.println(newMessage);
+                } catch (IOException e) {
+                    closeEverything();
+                }
+            }
+        }).start();
+    }
+
+    public void closeEverything() {
+        close(socket);
+        close(reader);
+        close(writer);
+    }
+
+    private <T extends Closeable> void close(T res) {
         try {
-            if (res!=null) {
+            if (res != null) {
                 res.close();
             }
         } catch (IOException e) {
@@ -49,40 +68,19 @@ public class Client {
         }
     }
 
-    public static void main(String[] args) {
-        new Client();
-    }
-}
+    public static void main() {
+        Client client = null;
+        try {
+            System.out.print("Enter username: ");
 
-class ReaderThread extends Thread {
-    DataInputStream is;
-    Socket socket;
+            Scanner sc = new Scanner(System.in);
+            String username = sc.next();
 
-    public ReaderThread(Socket socket, DataInputStream is) {
-        this.is = is;
-        this.socket = socket;
-    }
-
-    @Override
-    public void run() {
-        String newMessage;
-        while (socket.isConnected()) {
-            try {
-                newMessage = is.readUTF();
-                System.out.println(newMessage);
-            } catch (Exception e) {
-                try {
-                    if (is != null) {
-                        is.close();
-                    }
-                    if (socket != null) {
-                        socket.close();
-                    }
-                } catch (IOException ex) {
-                    throw new RuntimeException(ex);
-                }
-
-            }
+            client = new Client(username);
+            client.receiveMessages();
+            client.sendMessages();
+        } catch (IOException e) {
+            client.closeEverything();
         }
     }
 }
