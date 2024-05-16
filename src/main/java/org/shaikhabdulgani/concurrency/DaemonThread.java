@@ -1,7 +1,8 @@
 package org.shaikhabdulgani.concurrency;
 
+@SuppressWarnings("preview")
 public class DaemonThread {
-    public static void main(String[] args) {
+    public static void main() {
         Thread thread1 = new Thread(() -> {
             for (int i = 0; i < 500; i++) {
                 System.out.println(STR."In thread1 \{i}");
